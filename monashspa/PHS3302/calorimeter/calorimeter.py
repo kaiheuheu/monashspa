@@ -21,8 +21,6 @@ scintillator = model.Layer('Scin', 0.01, 0.5, 1.0)
 for i in range(40):
     mycal.add_layers([lead, scintillator])
 
-zcors = mycal.positions()
-
 sim = model.Simulation(mycal)
 
 ionisations, cal_with_traces = sim.simulate_with_tracing(model.Electron(0.0, 100.0), deadcellfraction=0.0)
@@ -38,7 +36,14 @@ mycal.reset()
 
 # Run a simulation of many particles to get some statistics
 start_time = time.time()
-ionisations = sim.simulate(model.Electron(0.0, 10.0), 250, deadcellfraction=0.0)
+
+calibration_energy = 10.0  # GeV
+
+# Create spectrum and generate particles with discrete energy
+spectrum = model.Spectrum(particle_type=model.Electron)
+electrons = spectrum.discrete(n_particles=250, energy=calibration_energy)
+
+ionisations = sim.simulate_sample(electrons, deadcellfraction=0.0)
 end_time = time.time()
 
 elapsed_time = end_time - start_time
@@ -55,6 +60,7 @@ print(f'Relative resolution is {rel_resolution:.3f}')
 
 fig = plt.figure(figsize=(15,5))
 ax1, ax2, ax3 = fig.subplots(1, 3)
+zcors = [vol.z for vol in mycal.volumes(active=True)]
 for i in ionisations:
     ax1.plot(zcors, i)
 ax1.set_xlabel(r'$x$ [cm]')
@@ -75,13 +81,17 @@ plt.show()
 # ## Study energy resolution
 # Make a plot of the relative energy resolution, $\sigma(E)/E$ for particles between 1 and 10 GeV.
 # You should be able to demonstrate that the resolution is proportional to $1/\sqrt{E}$.
-# This will require that you run the simulation code above inside a loop to get number for multiple
-# different energies.
-
-particle_energies = np.logspace(0.0, 1.1, 10)
 
 
-# 2 marks: Create loop to find resolutions for different energies
+# Create a spectrum of electrons
+spectrum = model.Spectrum(particle_type=model.Electron,min_energy=1.0,max_energy=10.0)
+electrons = spectrum.spectrum(n_particles=1000)
+particle_energies = np.array([e.energy for e in electrons])
+
+ionisations = sim.simulate_sample(electrons, deadcellfraction=0.0)
+
+
+# 2 marks: Sum the ionisations to get the total energy deposited in the calorimeter for each electron
 # 2 marks: Create plot of the relative energy resolution vs. energy
 # 2 marks: Document that it shows the $1/\sqrt{E}$ behaviour through a fit or similar
 
