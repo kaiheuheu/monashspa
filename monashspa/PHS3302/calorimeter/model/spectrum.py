@@ -5,7 +5,7 @@ from .particle import Electron
 class Spectrum:
     """Class for generating particles from various energy distributions."""
 
-    def __init__(self, particle_type=Electron, min_energy=3, max_energy=50):
+    def __init__(self, particle_type=Electron, min_energy=1, max_energy=50):
         """
         Initialize the spectrum generator.
 
@@ -44,7 +44,9 @@ class Spectrum:
             If energy is outside the range [min_energy, max_energy]
         """
         if energy < self.min_energy or energy > self.max_energy:
-            raise ValueError(f"Energy {energy} is outside the allowed range [{self.min_energy}, {self.max_energy}]")
+            raise ValueError(
+                f"Energy {energy} is outside the allowed range [{self.min_energy}, {self.max_energy}]"
+            )
         return [self.particle_type(0.0, energy) for _ in range(n_particles)]
 
     def uniform(self, n_particles, seed=None):
