@@ -9,6 +9,13 @@ import monashspa.PHS3302.calorimeter.model as model
 
 from scipy.optimize import curve_fit
 
+from scipy import stats
+from monashspa.common.fitting import (
+    get_fit_parameters,
+    make_lmfit_model,
+    model_fit,
+)
+
 
 def main():
     mycal = model.Calorimeter()
@@ -393,13 +400,6 @@ def main():
 
     rel_resolutions_withall = np.array(rel_resolutions_withall)
     u_rel_resolutions_withall = np.array(u_rel_resolutions_withall)
-
-    from scipy import stats
-    from monashspa.common.fitting import (
-        get_fit_parameters,
-        make_lmfit_model,
-        model_fit,
-    )
 
     name = "Overall calorimeter energy resolution"
 
