@@ -807,7 +807,7 @@ def main():
         [10.0, 20.0, 50.0, 100.0, 200.0, 500.0, 1000.0, 2000.0]
     )
 
-    n_particles_punchthrough = 20
+    n_particles_punchthrough = 100
 
     punchthrough_spectrum = model.Spectrum(
         particle_type=model.Electron,
