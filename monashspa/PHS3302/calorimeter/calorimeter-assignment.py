@@ -226,7 +226,6 @@ def main():
     for beam_energy in beam_energies:
         print(f"Simulating {beam_energy:.0f} GeV electrons...")
 
-        # Generate n_particles_per_energy electrons with identical true energy.
         study_spectrum = model.Spectrum(
             particle_type=model.Electron, min_energy=1.0, max_energy=10.0
         )
@@ -234,13 +233,12 @@ def main():
             n_particles=n_particles_per_energy, energy=beam_energy
         )
 
-        # ionisations has one row per electron and one column per active layer.
         ionisations = sim.simulate_sample(electrons, deadcellfraction=0.0)
 
         # Reconstructed calorimeter signal for every event.
         reconstructed_energies = np.sum(ionisations, axis=1)
 
-        # Relative energy resolution: sigma(E_reco) / mean(E_reco).
+        # Relative energy resolution: sigma(E) / mean(E).
         resolution = np.std(reconstructed_energies, ddof=1) / np.mean(
             reconstructed_energies
         )
@@ -286,17 +284,13 @@ def main():
     # -----------------------------------------------------------
     # Part 2: Noise
     # -----------------------------------------------------------
-    # Modify the code such that when reading out the total ionisation from a layer, a noise term is added.
-    # The noise is a random amount from a Gaussian distribution that is added to the ionisation for active
-    # layers. Demonstrate how this is only relevant for the relative resolution when the ingoing particle
-    # has low energy. Identify a noise level yourself that illustrates the effect well.
+    # Modify the code such that when reading out the total ionisation from a layer, a noise term is added. The noise is a random amount from a Gaussian distribution that is added to the ionisation for active layers. Demonstrate how this is only relevant for the relative resolution when the ingoing particle has low energy. Identify a noise level yourself that illustrates the effect well.
 
     # Fixed seed so that the result is reproducible.
     rng = np.random.default_rng(33739374)
 
     # Standard deviation of the readout noise per active calorimeter layer.
-    # Based on median layer signal of 26
-    noise_sigma_per_layer = 2.6
+    noise_sigma_per_layer = 2.6  # Chosen to illustrate the effect
 
     relative_resolutions_noise = []
 
@@ -338,13 +332,13 @@ def main():
         )
 
         # Add noise only to active layers.
-        # If an ionisation entry is zero, that layer is treated as inactive.
+        # Zero ionisation entry layers are ignored.
         noisy_ionisations = ionisations + layer_noise * (ionisations > 0)
 
         # Sum all noisy layer readouts to obtain one reconstructed energy per electron.
         reconstructed_energies_noise = np.sum(noisy_ionisations, axis=1)
 
-        # Calculate sigma(E_reco) / mean(E_reco).
+        # Calculate sigma(E) / mean(E).
         resolution_noise = np.std(reconstructed_energies_noise, ddof=1) / np.mean(
             reconstructed_energies_noise
         )
@@ -390,7 +384,7 @@ def main():
     # -----------------------------------------------------------
     # Study how mis-calibration of layers will affect the resolution. Implement this by scaling the total ionisation collected in all layers for a given particle by a random value. The scaling factor should be close to 1.0. Demonstrate how this is most relevant for the relative resolution when the ingoing particle has high energy.
 
-    calibration_sigma = 0.05  # Can be adjusted
+    calibration_sigma = 0.05  # Chosen to illustrate effect
 
     rng = np.random.default_rng(33739374)
 
@@ -466,7 +460,7 @@ def main():
     # 2 marks: Create a plot that shows the new relative energy resolution.
     # 2 marks: Comparison in one form or the other to situation without the mis-calibration.
 
-    # Discussion: For each event, the reconstructed calorimeter signal was obtained by summing ionisation across all active scintillator layers. A Gaussian calibration factor with mean 1.0 and standard deviation 0.05 was then applied once to the total event signal. This models an event-level fractional calibration variation. The resulting relative-resolution curve lies above the ideal result and tends towards the sigma calibration 0.05 high-energy floor. At low energy, intrinsic sampling fluctuations dominate and scale approximately as 1/sqrt(E). At high energy, those fluctuations decrease, whereas the multiplicative calibration variation remains an approximately constant fractional contribution. Consequently, mis-calibration is relatively most significant at high energy.
+    # Discussion: For each event, the reconstructed calorimeter signal was obtained by summing ionisation across all active scintillator layers. A Gaussian calibration factor with mean 1.0 and standard deviation 0.05 was then applied once to the total event signal. The resulting relative-resolution curve lies above the ideal result and tends towards the sigma calibration 0.05 high-energy floor. At low energy, sampling fluctuations dominate and scale approximately as 1/sqrt(E). At high energy, those fluctuations decrease, whereas the multiplicative calibration variation remains an approximately constant fractional contribution. Consequently, mis-calibration is relatively most significant at high energy.
 
     # -----------------------------------------------------------
     # Part 4: Fit an overall resolution
@@ -479,7 +473,7 @@ def main():
 
     n_particles_per_energy = 250
 
-    # Use the values you selected in your earlier two sections.
+    # I believe to be the best values moving forward
     noise_sigma = 2.0
     calibration_sigma = 0.03
 
@@ -870,7 +864,7 @@ def main():
     # 2 marks: Use the analytic results for the shower penetration to esitmate when punch through will start to happen.
     # 2 marks: Experimentally investigate at which energy the punch through will start to happen.
 
-    # Discussion: The calorimeter depth was calculated to be approximately 143.0 radiation lengths. Using the electromagnetic-shower 95% longitudinal-containment estimate t_95 = ln(E/E_c) - 1 + 9.6 + 0.08Z, the energy at which the 95% containment depth equals the calorimeter depth is astronomically larger than the simulated GeV–TeV range.The energy resolution improved as expected with a slight increase at 1000 GeV. At 2000 GeV, the relative resolution increased from about 0.006 at 500–1000 GeV to approximately 0.020. I therefore identify the onset of observable partial punch-through as beginning around 1 TeV but being clear at 2 TeV.
+    # Discussion: The calorimeter depth was calculated to be approximately 143.0 radiation lengths. Using the electromagnetic-shower 95% longitudinal-containment estimate t_95 = ln(E/E_c) - 1 + 9.6 + 0.08Z, the energy at which the 95% containment depth equals the calorimeter depth is astronomically larger than the simulated GeV–TeV range.The energy resolution improved as expected with a slight increase at 500 and 1000GeV. At 2000 GeV, the relative resolution increased from about 0.010 at 500–1000 GeV to approximately 0.020. I therefore identify the onset of observable partial punch-through as beginning around 500 GeV but being clear at 2 TeV.
 
 
 if __name__ == "__main__":
