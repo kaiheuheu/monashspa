@@ -27,7 +27,6 @@
 
 # In[1]:
 
-
 import monashspa
 import uproot4 as uproot
 import matplotlib.pyplot as plt
@@ -38,9 +37,7 @@ from monashspa.common.download_gdrive import download_file_from_google_drive
 ## define constants
 const_c = 2.99792e8 * 1e3 * 1e-12  ## in units mm/ps
 
-
 # In[2]:
-
 
 ## Download the data
 download_file_from_google_drive("1sJI2nsJGmCu52xvpqCaijYQlDyqGA2b7", "Data_small.root")
@@ -73,9 +70,7 @@ PV_Z = tree["D0_OWNPV_Z"].array(library="np")
 K_PT = np.sqrt(K_PX**2 + K_PY**2)
 Pi_PT = np.sqrt(Pi_PX**2 + Pi_PY**2)
 
-
 # In[3]:
-
 
 ## Lets try plotting the momentum of the kaon and pion
 fig, ax = plt.subplots(2, 2, figsize=(8, 5))
@@ -97,9 +92,7 @@ ax[1, 1].set_ylabel("Candidates")
 plt.tight_layout()
 plt.show()
 
-
 # In[4]:
-
 
 ## plot the position of the D0 production and decay verticies
 fig, ax = plt.subplots(2, 3, figsize=(10, 5))
@@ -129,7 +122,6 @@ ax[1, 2].set_ylabel("Candidates")
 
 plt.tight_layout()
 plt.show()
-
 
 # ## Part 2: Creating the information we'll need
 #
@@ -187,7 +179,6 @@ D0_M = np.sqrt(D0_E**2 - D0_PX**2 - D0_PY**2 - D0_PZ**2)
 
 # In[7]:
 
-
 ## Plot D0_M histogram
 plt.figure(figsize=(8, 5))
 plt.hist(D0_M, bins=100)
@@ -195,7 +186,6 @@ plt.xlabel(r"$m(K^-\pi^+)$ [MeV/$c^2$]")
 plt.ylabel("Candidates")
 plt.title(r"Reconstructed $D^0$ candidate mass")
 plt.show()
-
 
 # ### Part 2b: $D^0$ lifetime
 # To calculate the lifetime we first need to determine the distance between the proton-proton interaction vertex ($D^0$ production vertex, or primary vertex) and the $D^0$ decay vertex (or secondary vertex). The 3-vector between these points is given by:
@@ -208,15 +198,21 @@ plt.show()
 
 # In[8]:
 
+D0_DX = D0_X - PV_X
+D0_DY = D0_Y - PV_Y
+D0_DZ = D0_Z - PV_Z
 
-# D0_L =
-
+D0_L = np.sqrt((D0_DX) ** 2 + (D0_DY) ** 2 + (D0_DZ) ** 2)
 
 # In[9]:
 
-
 ## Plot D0_L histogram
-
+plt.figure(figsize=(8, 5))
+plt.hist(D0_L, bins=100)
+plt.xlabel(r"$|\Delta \vec{x}|$ [mm]")
+plt.ylabel("Candidates")
+plt.title(r"$D^0$ interaction distance")
+plt.show()
 
 # In the lab frame, a particle travelling at velocity $\vec{\mathbf{v}}$ for a time $t$ will travel a distance $\Delta \vec{\mathbf{x}}$:
 # $$
@@ -243,10 +239,25 @@ plt.show()
 
 # In[10]:
 
+# Magnitude of total D0 momentum [MeV/c]
+D0_P = np.sqrt(D0_PX**2 + D0_PY**2 + D0_PZ**2)
 
-# Calculate tau [ps]
+# Projection of decay-production displacement onto D0 momentum direction [mm MeV]
+D0_L_dot_P = D0_DX * D0_PX + D0_DY * D0_PY + D0_DZ * D0_PZ
+
+# Proper decay length c*tau [mm]
+D0_ctau = D0_M * D0_L_dot_P / D0_P**2
+
+# Proper decay time tau [ps]
+D0_tau = D0_ctau / const_c
+
 # Plot histogram of tau
-
+plt.figure(figsize=(8, 5))
+plt.hist(D0_tau, bins=100)
+plt.xlabel(r"Proper decay time, $\tau$ [ps]")
+plt.ylabel("Candidates")
+plt.title(r"Reconstructed $D^0$ proper decay time")
+plt.show()
 
 # ### Part 3: Background subtraction
 
