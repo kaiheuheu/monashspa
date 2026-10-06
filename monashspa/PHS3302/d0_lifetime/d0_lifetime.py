@@ -277,54 +277,112 @@ plt.show()
 
 # In[11]:
 
+# Define signal and background regions
+signal_mask = (D0_M > (1864.84 - 20)) & (D0_M < (1864.84 + 20))
 
-## Example of using masks to only plot a subset of data
+background_mask = ((D0_M > 1810) & (D0_M < 1830)) | ((D0_M > 1900) & (D0_M < 1920))
 
-if False:
-    # Define some signal and background regions
-    # Note- these are just for demonstration purposes
-    signal_mask = (D0_PX > -10000) & (D0_PX < 10000)
-    background_mask = (D0_PX < -10000) | (D0_PX > 10000)
+plt.figure(figsize=(7, 3))
 
-    fig, ax = plt.subplots(1, 2, figsize=(10, 5))
+plt.hist(D0_M, bins=200, range=(1800, 1930), histtype="step", color="black")
+plt.axvspan(1844.84, 1884.84, alpha=0.25, color="green", label="Signal region")
+plt.axvspan(1810, 1830, alpha=0.25, color="red", label="Background sidebands")
+plt.axvspan(1900, 1920, alpha=0.25, color="red")
 
-    ## We must use the same range for both so the correct values are subtracted
-    hist_sig = ax[0].hist(D0_PY[signal_mask], bins=50, range=(-20000, 20000))
-    hist_bkg = ax[0].hist(D0_PY[background_mask], bins=50, range=(-20000, 20000))
-    ax[0].set_yscale("log")
+plt.xlabel(r"$m(K^-\pi^+)$ [MeV/$c^2$]")
+plt.ylabel("Candidates")
+plt.legend()
+plt.show()
 
-    ## Define a function to create the difference of two histograms
-    def subtractHitograms(hist_sig, hist_bkg):
-        val_of_bins_sig, edges_of_bins_sig, _ = hist_sig
-        val_of_bins_bkg, edges_of_bins_bkg, _ = hist_bkg
+fig, ax = plt.subplots(1, 2, figsize=(12, 4.5))
 
-        difference = val_of_bins_sig - val_of_bins_bkg
-        ## Using possion statistics the error on each bin is sqrt(N)
-        ## So we add sqrt(N_sig) and sqrt(N_bkg) in quaderature
-        error = np.sqrt(
-            val_of_bins_sig + val_of_bins_bkg,
-            where=(val_of_bins_sig + val_of_bins_bkg >= 0),
-        )
-        bincenter = 0.5 * (edges_of_bins_sig[1:] + edges_of_bins_sig[:-1])
-        return difference, error, bincenter
+## We must use the same range for both so the correct values are subtracted
+hist_sig = ax[0].hist(D0_PY[signal_mask], bins=50, range=(1800, 1930))
+hist_bkg = ax[0].hist(D0_PY[background_mask], bins=50, range=(1800, 1930))
+s
 
-    ## Plot the difference between two histograms
-    difference, error, bincenter = subtractHitograms(hist_sig, hist_bkg)
-    ax[1].errorbar(bincenter, difference, yerr=error, color="r")
-    ax[1].set_yscale("log")
-    plt.show()
 
+## Function to create the difference of two histograms
+def subtractHistograms(hist_sig, hist_bkg):
+    val_of_bins_sig, edges_of_bins_sig, _ = hist_sig
+    val_of_bins_bkg, edges_of_bins_bkg, _ = hist_bkg
+
+    difference = val_of_bins_sig - val_of_bins_bkg
+
+    ## Using possion statistics the error on each bin is sqrt(N)
+    ## So we add sqrt(N_sig) and sqrt(N_bkg) in quaderature
+    error = np.sqrt(
+        val_of_bins_sig + val_of_bins_bkg,
+        where=(val_of_bins_sig + val_of_bins_bkg >= 0),
+    )
+
+    bincenter = 0.5 * (edges_of_bins_sig[1:] + edges_of_bins_sig[:-1])
+
+    return difference, error, bincenter
+
+
+## Plot the difference between two histograms
+difference, error, bincenter = subtractHistograms(hist_sig, hist_bkg)
+ax[1].errorbar(bincenter, difference, yerr=error, color="r")
+plt.show()
 
 #
 # <span style="color:red">**Task 7** *[5 marks]*</span> Plot histograms of the $D^0$ decay time in the signal and background-only regions. Take the difference between the histograms to create the background-subtracted decaytime distribution.
 
 # In[12]:
 
-
-## Define signal and background masks
-
 ## Plot total, background and background-subtracted tau distributions
+fig, ax = plt.subplots(1, 2, figsize=(12, 4.5))
 
+# Keep these identical for both histograms
+tau_bins = 100
+tau_range = (0, 5)
+
+# Left panel: signal-region candidates and sideband-background candidates
+hist_sig = ax[0].hist(
+    D0_tau[signal_mask],
+    bins=tau_bins,
+    range=tau_range,
+    histtype="step",
+    linewidth=1.5,
+    color="tab:blue",
+    label="Signal region: signal + background",
+)
+
+hist_bkg = ax[0].hist(
+    D0_tau[background_mask],
+    bins=tau_bins,
+    range=tau_range,
+    histtype="step",
+    linewidth=1.5,
+    color="red",
+    label="Background sidebands",
+)
+
+ax[0].set_xlabel(r"Proper decay time, $\tau$ [ps]")
+ax[0].set_ylabel("Candidates per bin")
+ax[0].set_title(r"$D^0$ proper-time distributions")
+ax[0].legend()
+
+# Right panel: bin-by-bin sideband subtraction
+difference, error, bin_centers = subtractHistograms(hist_sig, hist_bkg)
+
+ax[1].errorbar(
+    bin_centers,
+    difference,
+    yerr=error,
+    fmt="-",
+    markersize=3,
+    capsize=1.5,
+    color="orange",
+)
+
+ax[1].set_ylim(0, 10000)
+ax[1].set_xlabel(r"Proper decay time, $\tau$ [ps]")
+ax[1].set_ylabel("Background-subtracted candidates")
+ax[1].set_title(r"Background-subtracted $D^0$ decay time")
+
+plt.show()
 
 # ### Part 4: Fit the decay time distribution to determine the $D^0$ lifetime
 #
@@ -347,7 +405,6 @@ if False:
 
 # In[13]:
 
-
 from lmfit import fit_report
 from scipy import stats
 from monashspa.common.fitting import (
@@ -358,85 +415,118 @@ from monashspa.common.fitting import (
 )
 from monashspa.common.figures import savefig
 
-if False:
-    ## Fill these with the contents of your background-subtracted distrbution
-    x_values = []
-    y_values = []
-    y_errors = []
+# ----------------------------------------------------------------
+# Fit region where the distribution is approximately exponential.
+# ----------------------------------------------------------------
+fit_mask = (bin_centers > 0.35) & (bin_centers < 4.0) & (difference > 0) & (error > 0)
 
-    ## Define a model to fit and set the parameters
-    name = "Decay time"
-    model = make_lmfit_model("a*sin(x/b)")
-    params = model.make_params(a=1.0, b=1.0)
-    fit_results = model_fit(model, params, x_values, y_values, u_y=y_errors)
+x_values = bin_centers[fit_mask]
+y_values = difference[fit_mask]
+y_errors = error[fit_mask]
 
-    # Extract result and print nicely
-    fit = fit_results.best_fit
-    u_fit = fit_results.eval_uncertainty(sigma=1)
-    fit_parameters = get_fit_parameters(fit_results)
-    pvalue = 1.0 - stats.chi2.cdf(
-        fit_results.chisqr, fit_results.ndata - fit_results.nvarys
-    )
+# Exponential decay model:
+# a = normalisation
+# lifetime = D0 lifetime in ps
+name = r"$D^0$ decay time"
+model = make_lmfit_model("a * exp(-x / lifetime)")
 
-    ## Plot the result
+# Reasonable initial parameter values
+params = model.make_params(a=np.max(y_values), lifetime=0.4103)
 
-    print("""
-    [[{name}]]
-    =================
-      p-value       = {pvalue:.2E}
-    """.format(name=name, pvalue=pvalue))
-    print(fit_results.fit_report())
+# Physically constrain both fitted parameters to be positive
+params["a"].set(min=0)
+params["lifetime"].set(min=0)
 
-    # Create some plots
-    fig, (ax1, ax2) = plt.subplots(
-        2, sharex=True, gridspec_kw={"height_ratios": [3, 1]}
-    )
+# Weighted chi-squared fit, using the propagated subtraction errors
+fit_results = model_fit(model, params, x_values, y_values, u_y=y_errors)
 
-    ax1.errorbar(
-        x_values,
-        y_values,
-        yerr=y_errors,
-        marker="x",
-        linestyle="None",
-        color="black",
-        label=name,
-    )
+# Extract fitted curve and its one-sigma uncertainty
+fit = fit_results.best_fit
+u_fit = fit_results.eval_uncertainty(sigma=1)
 
-    ax1.plot(
-        x_values,
-        fit,
-        marker="None",
-        linestyle="-",
-        color="black",
-        label="fit to {name}".format(name=name),
-    )
+# Extract the lifetime and its uncertainty
+lifetime = fit_results.params["lifetime"].value
+u_lifetime = fit_results.params["lifetime"].stderr
 
-    ax1.fill_between(
-        x_values,
-        fit - u_fit,
-        fit + u_fit,
-        color="lightgrey",
-        label="uncertainty in {name}".format(name=name),
-    )
-    ax1.legend()
-    ax1.set(ylabel="Background-subtracted candidates")
-    ax1.set_yscale("log")
+# Goodness of fit
+ndof = fit_results.ndata - fit_results.nvarys
+pvalue = 1.0 - stats.chi2.cdf(fit_results.chisqr, ndof)
 
-    ## Plot the pulls
-    pull = (y_values - fit) / y_errors
-    ax2.plot(x_values, pull, marker="*", linestyle="None", color="black")
-    emin = np.min(x_values)
-    emax = np.max(x_values)
-    ax2.plot([emin, emax], [0, 0], marker="None", linestyle="-", color="grey")
-    ax2.plot([emin, emax], [1, 1], marker="None", linestyle="dashed", color="grey")
-    ax2.plot([emin, emax], [-1, -1], marker="None", linestyle="dashed", color="grey")
-    ax2.set(xlabel="x", ylabel="Pull")
-    scale = 1.1 * np.max(np.abs(pull))
-    ax2.set_ylim(-scale, scale)
-    fig.suptitle("Fit with {name}".format(name=name))
+print(f"Fitted D0 lifetime = {lifetime:.4f} ± {u_lifetime:.4f} ps")
+print(f"chi2 / ndof = {fit_results.chisqr:.2f} / {ndof} = {fit_results.redchi:.2f}")
+print(f"p-value = {pvalue:.3g}\n")
+print(fit_results.fit_report())
 
-    plt.show()
+## Plot the result
+fig, (ax1, ax2) = plt.subplots(
+    2, 1, figsize=(8, 7), sharex=True, gridspec_kw={"height_ratios": [3, 1]}
+)
 
+# Decay-time distribution and fitted exponential
+ax1.errorbar(
+    x_values,
+    y_values,
+    yerr=y_errors,
+    fmt="o",
+    markersize=4,
+    color="black",
+    label="Background-subtracted data",
+)
+
+ax1.plot(
+    x_values,
+    fit,
+    color="tab:red",
+    linewidth=2,
+    label=(
+        rf"Exponential fit: $\tau_{{D^0}} = "
+        rf"{lifetime:.4f} \pm {u_lifetime:.4f}$ ps"
+    ),
+)
+
+ax1.fill_between(
+    x_values,
+    fit - u_fit,
+    fit + u_fit,
+    color="lightcoral",
+    alpha=0.5,
+    label="Fit uncertainty",
+)
+
+ax1.set_ylabel("Background-subtracted candidates")
+ax1.set_yscale("log")
+ax1.set_ylim(bottom=1)
+ax1.set_title(r"$D^0$ lifetime fit")
+ax1.legend()
+
+# Pulls: difference between each bin and the fitted model
+pull = (y_values - fit) / y_errors
+
+ax2.axhline(0, color="black", linewidth=1)
+ax2.axhline(1, color="grey", linestyle="--")
+ax2.axhline(-1, color="grey", linestyle="--")
+
+ax2.plot(x_values, pull, marker="o", linestyle="None", markersize=4, color="black")
+
+ax2.set_xlabel(r"Proper decay time, $\tau$ [ps]")
+ax2.set_ylabel("Pull")
+
+plt.show()
+
+pdg_lifetime = 0.4103  # ps
+pdg_uncertainty = 0.0010  # ps
+
+difference_from_pdg = lifetime - pdg_lifetime
+pull_from_pdg = difference_from_pdg / u_lifetime
+
+print(f"Difference from PDG = {difference_from_pdg:.4f} ps")
+print(f"Difference / statistical uncertainty = {pull_from_pdg:.2f} sigma")
+
+# Discussion: Fitting the background-subtracted proper-time distribution over 0.35 < τ < 4.0 ps with P(τ) = A exp(-τ/τ_D0) gives τ_D0 = (0.4138 ± 0.0016) ps. The PDG value is (0.4103 ± 0.0010) ps. Our result is higher by 0.0035 ps, approximately 2.3 times our statistical uncertainty. For this comparison, I used only our measurement uncertainty because it is larger than the PDG uncertainty. This indicates a modest difference when treating the PDG central value as a fixed reference, rather than accounting for the uncertainty in both measurements.
+
+# Systematic uncertainties have not been included. Possible sources include:
+# - The assumption of a flat mass background. The subtraction assumes equal background counts per unit mass in the signal and sideband regions, and that the sidebands represent the background decay-time distribution beneath the signal peak.
+# - The choice of fit range. The range was chosen to avoid small decay times where the distribution is not exponential. Varying the fit limits would help assess how much this choice affects the result.
 
 # ### Part 5: Use the impact parameter to estimate the uncertainty on each measurement
 # In this large part you will need to demonstrate the use of tools that you have used above but without any template code to hep you.
