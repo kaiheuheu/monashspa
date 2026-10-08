@@ -299,7 +299,6 @@ fig, ax = plt.subplots(1, 2, figsize=(12, 4.5))
 ## We must use the same range for both so the correct values are subtracted
 hist_sig = ax[0].hist(D0_PY[signal_mask], bins=50, range=(1800, 1930))
 hist_bkg = ax[0].hist(D0_PY[background_mask], bins=50, range=(1800, 1930))
-s
 
 
 ## Function to create the difference of two histograms
@@ -540,3 +539,157 @@ print(f"Difference / statistical uncertainty = {pull_from_pdg:.2f} sigma")
 # First, you will need to estimate how big an uncertainty in decay time you get from a given uncertainty in displacement. Using a "typical" momentum should be sufficient for this. From there you can use several methods to answer the question. You might find the [Exponentially modified Gaussian distribution](https://en.wikipedia.org/wiki/Exponentially_modified_Gaussian_distribution) useful and the fact that the mean value of an exponential (starting at $t=0$) is exactly the lifetime. Another method would be to on purpose smear your decay time measurements and then repeat the lifetime fit to look at the impact.
 #
 # <span style="color:red">Note that you are not asked to exactly determine a possible bias, but simply determine if it might be significant when compared to the statistical uncertainty on the lifetime.</span>
+
+# ----------------------------------------------------------------
+# Task 9
+# ----------------------------------------------------------------
+from scipy.optimize import curve_fit
+
+D0_P2 = D0_PX**2 + D0_PY**2 + D0_PZ**2
+D0_P = np.sqrt(D0_P2)
+
+# Parallel displacement calculation
+projection = (D0_DX * D0_PX + D0_DY * D0_PY + D0_DZ * D0_PZ) / D0_P2
+
+# Perpendicular displacement components [mm]
+D0_PERP_X = D0_DX - projection * D0_PX
+D0_PERP_Y = D0_DY - projection * D0_PY
+D0_PERP_Z = D0_DZ - projection * D0_PZ
+
+# Length of the perpendicular displacement [mm]
+D0_PERP_L = np.sqrt(D0_PERP_X**2 + D0_PERP_Y**2 + D0_PERP_Z**2)
+
+# Masks used as before
+
+# Initial plotting range (100 bins each 0.003 mm wide)
+ip_edges = np.linspace(0, 0.3, 101)
+
+ip_sig, _ = np.histogram(D0_PERP_L[signal_mask], bins=ip_edges)
+ip_bkg, _ = np.histogram(D0_PERP_L[background_mask], bins=ip_edges)
+
+ip_difference = ip_sig - ip_bkg
+ip_error = np.sqrt(ip_sig + ip_bkg)
+ip_centers = 0.5 * (ip_edges[1:] + ip_edges[:-1])
+
+
+# Fit expected counts integrated over each bin.
+# This uses the Rayleigh cumulative distribution.
+def rayleigh_counts(edges, amplitude, sigma):
+    lower, upper = edges
+    return amplitude * (
+        np.exp(-(lower**2) / (2 * sigma**2)) - np.exp(-(upper**2) / (2 * sigma**2))
+    )
+
+
+# Keep negative subtracted counts: removing them would bias the fit.
+ip_fit_mask = ip_error > 0
+
+ip_fit_edges = np.vstack((ip_edges[:-1][ip_fit_mask], ip_edges[1:][ip_fit_mask]))
+
+ip_params, ip_covariance = curve_fit(
+    rayleigh_counts,
+    ip_fit_edges,
+    ip_difference[ip_fit_mask],
+    sigma=ip_error[ip_fit_mask],
+    absolute_sigma=True,
+    p0=[max(ip_difference.sum(), 1), 0.03],
+    bounds=([0, 1e-8], [np.inf, np.inf]),
+)
+
+ip_amplitude, sigma_position = ip_params
+u_sigma_position = np.sqrt(ip_covariance[1, 1])
+
+print(f"Spatial resolution = " f"{sigma_position:.5f} ± {u_sigma_position:.5f} mm")
+
+fig, ax = plt.subplots(1, 2, figsize=(12, 4.5))
+
+ax[0].stairs(ip_sig, ip_edges, label="Signal region")
+ax[0].stairs(ip_bkg, ip_edges, label="Background sidebands")
+ax[0].set_xlabel("Perpendicular displacement [mm]")
+ax[0].set_ylabel("Candidates per bin")
+ax[0].legend()
+
+ax[1].errorbar(
+    ip_centers,
+    ip_difference,
+    yerr=ip_error,
+    fmt="o",
+    markersize=3,
+    label="Background-subtracted data",
+)
+
+ax[1].plot(
+    ip_centers,
+    rayleigh_counts(
+        np.vstack((ip_edges[:-1], ip_edges[1:])), ip_amplitude, sigma_position
+    ),
+    label=rf"Rayleigh fit: $\sigma={sigma_position:.4f}$ mm",
+)
+
+ax[1].axhline(0, color="grey", linewidth=1)
+ax[1].set_xlabel("Perpendicular displacement [mm]")
+ax[1].set_ylabel("Background-subtracted candidates")
+ax[1].legend()
+
+plt.show()
+
+# ----------------------------------------------------------------
+# Task 10: estimate the effect of decay-time resolution
+# ----------------------------------------------------------------
+
+# Convert spatial resolution [mm] to decay-time resolution [ps]
+p_typical = np.median(D0_P[signal_mask])
+m_typical = np.median(D0_M[signal_mask])
+
+sigma_time = m_typical * sigma_position / (p_typical * const_c)
+print(f"Estimated decay-time resolution: {sigma_time:.5f} ps")
+
+
+# Fit the background-subtracted distribution using the same settings each time
+# Bins match the selection used in the original lifetime fit in task 7
+tau_edges = np.linspace(0, 5, 101)
+
+
+def fit_lifetime(times):
+    n_sig, _ = np.histogram(times[signal_mask], bins=tau_edges)
+    n_bkg, _ = np.histogram(times[background_mask], bins=tau_edges)
+
+    counts = n_sig - n_bkg
+    errors = np.sqrt(n_sig + n_bkg)
+    centers = 0.5 * (tau_edges[:-1] + tau_edges[1:])
+
+    mask = (centers > 0.35) & (centers < 4.0) & (errors > 0)
+
+    model = make_lmfit_model("a * exp(-x / lifetime)")
+    params = model.make_params(a=max(counts.max(), 1), lifetime=0.4)
+    params["a"].set(min=0)
+    params["lifetime"].set(min=1e-6)
+
+    result = model_fit(model, params, centers[mask], counts[mask], u_y=errors[mask])
+
+    return result.params["lifetime"].value
+
+
+# Original fit, then repeated with Gaussian smearing
+original_lifetime = fit_lifetime(D0_tau)
+
+rng = np.random.default_rng(33739374)
+smeared_lifetimes = []
+
+for _ in range(30):
+    smeared_times = D0_tau + rng.normal(0, sigma_time, size=D0_tau.shape)
+    smeared_lifetimes.append(fit_lifetime(smeared_times))
+
+smeared_lifetimes = np.array(smeared_lifetimes)
+
+mean_shift = np.mean(smeared_lifetimes) - original_lifetime
+spread = np.std(smeared_lifetimes, ddof=1)
+stat_error = 0.0016
+
+print(f"Original fitted lifetime: {original_lifetime:.5f} ps")
+print(f"Mean lifetime after extra smearing: {smeared_lifetimes.mean():.5f} ps")
+print(f"Mean shift: {mean_shift:+.5f} ps")
+print(f"Spread across smearing trials: {spread:.5f} ps")
+print(f"|Mean shift| / statistical uncertainty: {abs(mean_shift) / stat_error:.2f}")
+
+# Discussion: With a mean shift of +0.00005 ps, the effect of decay-time resolution is negligible compared to the statistical uncertainty of 0.0016 ps. The spread across smearing trials is also incredibely small, indicating that the effect of decay-time resolution is not a significant source of systematic uncertainty in this analysis.
